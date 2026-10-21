@@ -1,0 +1,38 @@
+[build-system]
+requires = ["setuptools>=61"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "campus-net-autologin"
+version = "1.0.0"
+description = "校园网自动认证 / 掉线重连 / 开机自启动 (深澜 Srun, 锐捷 ePortal, Dr.COM)"
+readme = "README.md"
+requires-python = ">=3.8"
+license = { text = "MIT" }
+authors = [{ name = "campus-net-autologin contributors" }]
+keywords = ["campus-network", "captive-portal", "srun", "eportal", "drcom", "autologin"]
+classifiers = [
+    "Environment :: Console",
+    "Intended Audience :: End Users/Desktop",
+    "License :: OSI Approved :: MIT License",
+    "Operating System :: Microsoft :: Windows",
+    "Operating System :: POSIX :: Linux",
+    "Operating System :: MacOS",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3 :: Only",
+    "Topic :: Internet",
+    "Topic :: System :: Networking",
+]
+dependencies = []
+
+[project.scripts]
+campusnet = "campusnet.cli:main"
+
+[project.urls]
+Homepage = "https://github.com/aths-7/campus-net-autologin"
+
+[tool.setuptools]
+packages = ["campusnet", "campusnet.providers"]
+
+[tool.setuptools.package-data]
+campusnet = ["py.typed"]

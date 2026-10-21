@@ -1,0 +1,18 @@
+{
+  "_comment": "Dr.COM 城市热点示例。宿舍宽带常见，0MKKey 一般就是 123456",
+  "provider": "drcom",
+  "portal": "http://10.0.0.1",
+  "username": "13800000000",
+  "password": "",
+  "use_proxy": false,
+  "timeout": 8,
+  "drcom": {
+    "key": "123456",
+    "success_marker": "Dr.COMWebLoginID_3"
+  },
+  "daemon": {
+    "interval": 30,
+    "max_backoff": 300,
+    "startup_delay": 15
+  }
+}

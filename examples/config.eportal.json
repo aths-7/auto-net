@@ -1,0 +1,22 @@
+{
+  "_comment": "锐捷 ePortal 示例。开了 passwordEncrypt 的学校把 encrypt 改成 rc4",
+  "provider": "eportal",
+  "portal": "https://10.21.8.7",
+  "username": "20230001",
+  "password": "",
+  "use_proxy": false,
+  "verify_tls": false,
+  "timeout": 8,
+  "eportal": {
+    "encrypt": "plain",
+    "rc4_key": "",
+    "query_string": "",
+    "service": "",
+    "valid_code": ""
+  },
+  "daemon": {
+    "interval": 30,
+    "max_backoff": 300,
+    "startup_delay": 15
+  }
+}

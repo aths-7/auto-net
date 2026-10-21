@@ -1,0 +1,23 @@
+# Python
+__pycache__/
+*.py[cod]
+*.egg-info/
+build/
+dist/
+.eggs/
+
+# 虚拟环境
+.venv/
+venv/
+env/
+
+# 本地配置与日志 —— 里面可能有明文密码，绝对不能提交
+config.json
+*.log
+campusnet.log*
+
+# 编辑器
+.vscode/
+.idea/
+*.swp
+.DS_Store

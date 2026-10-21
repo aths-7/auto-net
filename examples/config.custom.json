@@ -1,0 +1,23 @@
+{
+  "_comment": "自定义模板示例。用 F12 抓一次真实登录请求，把 URL / body / 成功特征填进来",
+  "provider": "custom",
+  "portal": "http://10.0.0.1",
+  "username": "your-account",
+  "password": "",
+  "use_proxy": false,
+  "timeout": 8,
+  "custom": {
+    "login_url": "{portal}/api/login",
+    "method": "POST",
+    "body": "user={username_q}&pw={password_q}",
+    "success_regex": "\"code\":\\s*0",
+    "headers": {
+      "X-Requested-With": "XMLHttpRequest"
+    }
+  },
+  "daemon": {
+    "interval": 30,
+    "max_backoff": 300,
+    "startup_delay": 15
+  }
+}
