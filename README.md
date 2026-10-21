@@ -22,7 +22,29 @@ Python 包名 / 命令叫 `campusnet`，仓库叫 `auto-net` —— 名字对不
 
 ---
 
-## 快速开始
+## 直接用 exe（不想装 Python）
+
+去 [Releases](https://github.com/aths-7/auto-net/releases) 下载 `auto-net-windows-x64.zip`，解压到任意目录（**建议放 D 盘**，别塞 `C:\Program Files` 那种要管理员权限的地方），里面有两个 exe：
+
+| 文件 | 用途 |
+| --- | --- |
+| `campusnet.exe` | 控制台版，敲命令用 |
+| `campusnet-daemon.exe` | 无窗口版，开机自启动专用，不会闪黑框 |
+
+```bat
+cd /d D:\auto-net
+campusnet.exe init            :: 交互填 portal / 账号 / 密码
+campusnet.exe login           :: 先验证能通
+campusnet.exe autostart on    :: 写注册表，指向 campusnet-daemon.exe
+```
+
+整个文件夹约 25 MB（`_internal` 里是 Python 运行时），**拷贝时整个文件夹一起拷**，单独拎一个 exe 出去会跑不起来。
+
+> 用 exe 时自启动项里写的是 `campusnet-daemon.exe daemon --quiet`；用源码跑时写的是 `pythonw.exe + 生成的启动脚本`。两种形态程序自己判断，不用你管。
+
+---
+
+## 快速开始（源码运行）
 
 ```bash
 git clone git@github.com:aths-7/auto-net.git
@@ -77,7 +99,10 @@ campusnet status
 | Linux | `~/.config/systemd/user/campusnet.service`，没 systemd 就退回 `~/.config/autostart/` |
 | macOS | `~/Library/LaunchAgents/com.campusnet.autologin.plist` |
 
-Windows 上会优先调用同目录的 `pythonw.exe` 并在 `~/.campusnet/` 生成一个自带 `sys.path` 修补的启动脚本 —— 这样开机时不会弹黑窗口，也不依赖当前工作目录。
+Windows 上的两种形态：
+
+- **源码运行**：调用同目录的 `pythonw.exe` + 在 `~/.campusnet/` 生成一个自带 `sys.path` 修补的启动脚本 —— 开机不弹黑窗口，也不依赖当前工作目录。
+- **exe 运行**：直接指向 `campusnet-daemon.exe`（编译时就是无控制台的 windowed 程序），比"启动后再把窗口隐藏"干净。
 
 先看要写什么，再决定要不要写：
 
@@ -210,7 +235,7 @@ Linux 上 `systemctl --user status campusnet` 看状态，`journalctl --user -u 
 python -m unittest discover -s tests -t . -v
 ```
 
-60 个用例，覆盖 RC4 已知向量、深澜 xencode 往返、chksum 拼接、JSONP 解析、各适配器对本地假 portal 的完整登录流程、联网检测、配置读写、自启动命令拼装、以及英文 Windows 控制台下的中文输出编码。全部离线运行，不需要连真实校园网。
+69 个用例，覆盖 RC4 已知向量、深澜 xencode 往返、chksum 拼接、JSONP 解析、各适配器对本地假 portal 的完整登录流程、联网检测、配置读写、自启动命令拼装、打包后（`sys.frozen`）的自启动命令形态、英文 Windows 控制台下的中文输出编码。全部离线运行，不需要连真实校园网。
 
 ```
 campusnet/
@@ -222,9 +247,22 @@ campusnet/
 ├── daemon.py        守护循环 + 单实例锁 + 指数退避
 ├── autostart.py     Windows 注册表 / systemd / launchd
 └── providers/       srun / eportal / drcom / custom
+
+packaging/
+├── entry.py         PyInstaller 入口
+└── campusnet.spec   一次分析产出两个 exe（控制台版 + 无窗口版）
 ```
 
 加一个适配器的方式：继承 `providers.base.BaseProvider`，实现 `login()` 返回 `LoginResult`，然后在 `providers/__init__.py` 的 `REGISTRY` 里注册。
+
+### 自己打包 exe
+
+```bat
+scripts\build-exe.bat
+```
+
+首次运行会自动建 `.venv` 并装 PyInstaller，产物在 `dist\auto-net\`。
+推一个 `v*` tag 会触发 [release.yml](.github/workflows/release.yml)，自动打包并发布到 Releases。
 
 ---
 

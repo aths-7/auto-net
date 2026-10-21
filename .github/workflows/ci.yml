@@ -50,3 +50,21 @@ jobs:
           python-version: "3.12"
       - name: Byte-compile all sources
         run: python -m compileall -q campusnet tests
+
+  package:
+    # 打包配置只在发版时才会用到，不在这里验一遍就得等 tag 那天才发现炸了
+    name: 打包校验 (windows exe)
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - run: python -m pip install --upgrade pip pyinstaller
+      - run: python -m PyInstaller --noconfirm --clean packaging/campusnet.spec
+      - name: Verify exe
+        shell: pwsh
+        run: |
+          dist\auto-net\campusnet.exe --version
+          if ($LASTEXITCODE -ne 0) { throw "打包后的 exe 无法运行" }
+          Test-Path dist\auto-net\campusnet-daemon.exe

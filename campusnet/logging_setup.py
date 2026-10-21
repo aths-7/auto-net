@@ -2,6 +2,7 @@
 from __future__ import annotations
 
 import logging
+import sys
 from logging.handlers import RotatingFileHandler
 from pathlib import Path
 from typing import Optional
@@ -33,7 +34,8 @@ def setup(quiet: bool = False, log_file: Optional[Path] = None, verbose: bool = 
     except OSError:
         pass  # 目录不可写就只走控制台
 
-    if not quiet:
+    if not quiet and sys.stderr is not None:
+        # 打包成无控制台的 exe 时 sys.stderr 是 None，套 StreamHandler 会炸
         stream = logging.StreamHandler()
         stream.setFormatter(logging.Formatter(_FORMAT))
         logger.addHandler(stream)

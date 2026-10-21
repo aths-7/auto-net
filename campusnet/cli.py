@@ -67,6 +67,8 @@ def build_parser() -> argparse.ArgumentParser:
     p_daemon.add_argument("--once", action="store_true", help="只跑一轮（调试用）")
     p_daemon.add_argument("--quiet", action="store_true", help="不输出到控制台（自启动时用）")
     p_daemon.add_argument("--max-rounds", type=int, help="跑 N 轮后退出（调试用）")
+    p_daemon.add_argument("--hide-console", action="store_true",
+                          help="启动后隐藏控制台窗口（Windows，控制台 exe 被自启动拉起时用）")
 
     # ------------------------------------------------------------- autostart
     p_auto = sub.add_parser("autostart", help="开机自启动开关")
@@ -248,6 +250,7 @@ def cmd_daemon(args: argparse.Namespace) -> int:
         once=args.once,
         quiet=args.quiet,
         max_rounds=args.max_rounds,
+        hide_window=args.hide_console,
     )
 
 

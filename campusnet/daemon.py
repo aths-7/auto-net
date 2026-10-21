@@ -7,6 +7,7 @@
 """
 from __future__ import annotations
 
+import os
 import socket
 import time
 from typing import Any, Dict, Optional
@@ -16,6 +17,24 @@ from . import logging_setup, netcheck
 from .providers import get_provider
 
 LOCK_PORT = 53417
+
+
+def hide_console() -> None:
+    """把当前进程的控制台窗口藏起来（仅 Windows）。
+
+    用 windowed 版 exe 启动时不需要这个；但如果是控制台 exe 被注册表拉起，
+    会先闪一下黑框，这个函数能立刻收掉。
+    """
+    if os.name != "nt":
+        return
+    try:
+        import ctypes
+
+        hwnd = ctypes.windll.kernel32.GetConsoleWindow()
+        if hwnd:
+            ctypes.windll.user32.ShowWindow(hwnd, 0)  # SW_HIDE
+    except Exception:
+        pass
 
 
 class InstanceLock:
@@ -52,7 +71,10 @@ def run(
     once: bool = False,
     quiet: bool = False,
     max_rounds: Optional[int] = None,
+    hide_window: bool = False,
 ) -> int:
+    if hide_window:
+        hide_console()
     logger = logging_setup.setup(quiet=quiet)
     daemon_cfg = cfg.get("daemon", {})
     interval = float(interval if interval is not None else daemon_cfg.get("interval", 30))

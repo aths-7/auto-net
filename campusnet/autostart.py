@@ -1,20 +1,25 @@
 """跨平台自启动开关：Windows 注册表 / Linux systemd(user) / macOS LaunchAgent。
 
 设计原则：不开管理员权限、不写系统目录、随时可一键关掉。
+
+同时支持两种运行形态：
+- 源码运行（`python -m campusnet`）—— 自启动项里要带解释器和 PYTHONPATH；
+- 打包成 exe（PyInstaller，`sys.frozen`）—— 自启动项直接指向可执行文件，
+  并优先使用无窗口的 `campusnet-daemon`，避免开机闪一个黑框。
 """
 from __future__ import annotations
 
 import os
-import stat
 import subprocess
 import sys
 from pathlib import Path
-from typing import Any, Dict, Optional, Tuple
+from typing import Any, Dict, List, Optional, Tuple
 
 from . import config as config_mod
 
 WIN_RUN_KEY = r"Software\Microsoft\Windows\CurrentVersion\Run"
 DEFAULT_APP_NAME = os.environ.get("CAMPUSNET_AUTOSTART_NAME", "CampusNetAutoLogin")
+DAEMON_EXE_NAME = "campusnet-daemon.exe" if os.name == "nt" else "campusnet-daemon"
 
 LINUX_UNIT = """[Unit]
 Description=Campus network auto login
@@ -23,9 +28,8 @@ Wants=network-online.target
 
 [Service]
 Type=simple
-ExecStart={python} -m campusnet daemon --quiet
-Environment=PYTHONPATH={pkg_parent}
-Restart=always
+ExecStart={exec_start}
+{env_line}Restart=always
 RestartSec=15
 
 [Install]
@@ -40,15 +44,9 @@ MAC_PLIST = """<?xml version="1.0" encoding="UTF-8"?>
   <key>Label</key><string>{label}</string>
   <key>ProgramArguments</key>
   <array>
-    <string>{python}</string>
-    <string>-m</string>
-    <string>campusnet</string>
-    <string>daemon</string>
-    <string>--quiet</string>
+{argv}
   </array>
-  <key>EnvironmentVariables</key>
-  <dict><key>PYTHONPATH</key><string>{pkg_parent}</string></dict>
-  <key>RunAtLoad</key><true/>
+{env_block}  <key>RunAtLoad</key><true/>
   <key>KeepAlive</key><true/>
   <key>StandardOutPath</key><string>{log}</string>
   <key>StandardErrorPath</key><string>{log}</string>
@@ -57,14 +55,21 @@ MAC_PLIST = """<?xml version="1.0" encoding="UTF-8"?>
 """
 
 
-# ---------------------------------------------------------------- 命令行拼装
+# ---------------------------------------------------------------- 运行形态判断
+def is_frozen() -> bool:
+    """是否由 PyInstaller 打包运行。"""
+    return bool(getattr(sys, "frozen", False))
+
+
 def pkg_parent() -> str:
-    """campusnet 包的父目录，用来在启动时补 sys.path。"""
+    """campusnet 包的父目录，源码运行时用来补 sys.path。"""
     return str(Path(__file__).resolve().parent.parent)
 
 
 def python_executable(hidden: bool = True) -> str:
-    """Windows 上优先用 pythonw.exe，否则每次开机都会弹个黑窗口。"""
+    """源码运行时返回解释器路径；Windows 上优先用 pythonw.exe 避免黑窗。"""
+    if is_frozen():
+        return str(Path(sys.executable))
     exe = Path(sys.executable)
     if hidden and os.name == "nt":
         candidate = exe.with_name("pythonw.exe")
@@ -73,12 +78,39 @@ def python_executable(hidden: bool = True) -> str:
     return str(exe)
 
 
+def daemon_executable() -> str:
+    """后台守护要跑的可执行文件。
+
+    打包后如果旁边有 windowed 版 daemon，就用它（没有控制台）；
+    否则退回当前可执行文件。
+    """
+    if not is_frozen():
+        return python_executable(hidden=True)
+    exe = Path(sys.executable)
+    sibling = exe.with_name(DAEMON_EXE_NAME)
+    if sibling.exists():
+        return str(sibling)
+    return str(exe)
+
+
+def exec_argv() -> List[str]:
+    """启动后台守护的完整 argv。"""
+    if is_frozen():
+        return [daemon_executable(), "daemon", "--quiet"]
+    return [python_executable(hidden=True), "-m", "campusnet", "daemon", "--quiet"]
+
+
+def _quote(part: str) -> str:
+    return f'"{part}"' if " " in part else part
+
+
 def command(hidden: bool = True) -> str:
-    return f'"{python_executable(hidden)}" -m campusnet daemon --quiet'
+    """给人看的命令行字符串（也直接写进 Windows 注册表）。"""
+    return " ".join(_quote(part) for part in exec_argv())
 
 
 def _launcher_script() -> Path:
-    """生成一个自带 sys.path 修补的启动脚本，供注册表/计划任务调用。"""
+    """源码运行时生成一个自带 sys.path 修补的启动脚本，供注册表调用。"""
     target = config_mod.app_dir() / "autostart_entry.py"
     target.parent.mkdir(parents=True, exist_ok=True)
     body = (
@@ -106,11 +138,18 @@ def _win_status(name: str) -> Tuple[bool, str]:
         return False, f"读取注册表失败: {exc}"
 
 
+def _win_value() -> str:
+    """写进注册表的命令行。打包后直接指向 exe，源码运行指向生成的启动脚本。"""
+    if is_frozen():
+        return command()
+    entry = _launcher_script()
+    return f'"{python_executable(True)}" "{entry}"'
+
+
 def _win_enable(name: str, dry_run: bool) -> Tuple[bool, str]:
     import winreg
 
-    entry = _launcher_script()
-    value = f'"{python_executable(True)}" "{entry}"'
+    value = _win_value()
     if dry_run:
         return True, value
     try:
@@ -145,12 +184,12 @@ def _linux_enable(name: str, dry_run: bool) -> Tuple[bool, str]:
     unit_path, xdg_path = _linux_paths()
     if dry_run:
         return True, str(unit_path)
+
     unit_path.parent.mkdir(parents=True, exist_ok=True)
     unit_path.write_text(
         LINUX_UNIT.format(
-            python=python_executable(hidden=False),
-            pkg_parent=pkg_parent(),
-            log=config_mod.log_path(),
+            exec_start=" ".join(_quote(part) for part in exec_argv()),
+            env_line="" if is_frozen() else f"Environment=PYTHONPATH={pkg_parent()}\n",
         ),
         encoding="utf-8",
     )
@@ -161,14 +200,13 @@ def _linux_enable(name: str, dry_run: bool) -> Tuple[bool, str]:
             subprocess.run(args, capture_output=True, text=True, check=False)
         return True, f"systemd user unit: {unit_path}"
 
-    # 没有 systemd 就退回 XDG autostart
     xdg_path.parent.mkdir(parents=True, exist_ok=True)
     xdg_path.write_text(
         "[Desktop Entry]\n"
         "Type=Application\n"
         "Name=Campus Network Auto Login\n"
-        f"Exec={python_executable(hidden=False)} -m campusnet daemon --quiet\n"
-        f"Path={pkg_parent()}\n"
+        f"Exec={' '.join(_quote(part) for part in exec_argv())}\n"
+        f"Path={Path(sys.executable).parent if is_frozen() else pkg_parent()}\n"
         "X-GNOME-Autostart-enabled=true\n",
         encoding="utf-8",
     )
@@ -209,11 +247,17 @@ def _mac_enable(name: str, dry_run: bool) -> Tuple[bool, str]:
     if dry_run:
         return True, str(path)
     path.parent.mkdir(parents=True, exist_ok=True)
+
+    argv = "\n".join(f"    <string>{part}</string>" for part in exec_argv())
+    env_block = "" if is_frozen() else (
+        "  <key>EnvironmentVariables</key>\n"
+        f"  <dict><key>PYTHONPATH</key><string>{pkg_parent()}</string></dict>\n"
+    )
     path.write_text(
         MAC_PLIST.format(
             label="com.campusnet.autologin",
-            python=python_executable(hidden=False),
-            pkg_parent=pkg_parent(),
+            argv=argv,
+            env_block=env_block,
             log=config_mod.log_path(),
         ),
         encoding="utf-8",
@@ -275,4 +319,5 @@ def summary() -> Dict[str, Any]:
         "enabled": enabled,
         "detail": detail,
         "command": command(),
+        "frozen": is_frozen(),
     }
