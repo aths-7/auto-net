@@ -2,6 +2,7 @@
 from __future__ import annotations
 
 import os
+import sys
 import tempfile
 import unittest
 from pathlib import Path
@@ -133,6 +134,27 @@ class TestCli(unittest.TestCase):
                 redirect_stdout(buf):
             code = cli.main(["-c", str(self.cfg_path), "doctor"])
         self.assertEqual(code, 0)
+
+
+    def test_survives_ascii_console(self) -> None:
+        """回归：英文 Windows（cp1252 控制台）上打印中文不能崩。"""
+        import io
+        from unittest import mock
+
+        config_mod.save({"username": "u", "password": "p", "portal": "http://10.1.1.1"}, self.cfg_path)
+        out_buf = io.BytesIO()
+        out = io.TextIOWrapper(out_buf, encoding="ascii", errors="strict")
+        old_out = sys.stdout
+        sys.stdout = out
+        try:
+            with mock.patch("campusnet.cli.netcheck.is_online", return_value=(True, [])):
+                code = cli.main(["-c", str(self.cfg_path), "status"])
+            out.flush()
+        finally:
+            sys.stdout = old_out
+
+        self.assertEqual(code, 0)
+        self.assertIn("在线", out_buf.getvalue().decode("utf-8"))
 
 
 if __name__ == "__main__":

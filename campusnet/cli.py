@@ -385,7 +385,25 @@ def _validate(cfg: Dict[str, Any], raise_error: bool = True) -> List[str]:
     return problems
 
 
+def _harden_console() -> None:
+    """把标准输出/错误切到 UTF-8。
+
+    英文版 Windows 的控制台默认是 cp1252，直接 print 中文会抛
+    UnicodeEncodeError —— 一个中文工具在中文 Windows 上没事，在英文
+    Windows 上崩，属于必须兜住的边界。
+    """
+    for stream in (sys.stdout, sys.stderr):
+        reconfigure = getattr(stream, "reconfigure", None)
+        if reconfigure is None:  # 被重定向成 StringIO 之类
+            continue
+        try:
+            reconfigure(encoding="utf-8", errors="replace")
+        except (ValueError, OSError, AttributeError):
+            pass
+
+
 def main(argv: Optional[List[str]] = None) -> int:
+    _harden_console()
     parser = build_parser()
     args = parser.parse_args(argv)
 

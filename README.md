@@ -210,7 +210,7 @@ Linux 上 `systemctl --user status campusnet` 看状态，`journalctl --user -u 
 python -m unittest discover -s tests -t . -v
 ```
 
-57 个用例，覆盖 RC4 已知向量、深澜 xencode 往返、chksum 拼接、JSONP 解析、各适配器对本地假 portal 的完整登录流程、联网检测、配置读写、自启动命令拼装。全部离线运行，不需要连真实校园网。
+60 个用例，覆盖 RC4 已知向量、深澜 xencode 往返、chksum 拼接、JSONP 解析、各适配器对本地假 portal 的完整登录流程、联网检测、配置读写、自启动命令拼装、以及英文 Windows 控制台下的中文输出编码。全部离线运行，不需要连真实校园网。
 
 ```
 campusnet/
