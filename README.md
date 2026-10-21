@@ -1,8 +1,15 @@
-# campus-net-autologin
+# auto-net
 
 > 校园网自动认证 · 掉线自动重连 · 开机自启动开关
 
+[![CI](https://github.com/aths-7/auto-net/actions/workflows/ci.yml/badge.svg)](https://github.com/aths-7/auto-net/actions/workflows/ci.yml)
+[![Python](https://img.shields.io/badge/python-3.8%2B-blue.svg)](https://www.python.org/)
+[![License: MIT](https://img.shields.io/badge/license-MIT-green.svg)](LICENSE)
+[![Deps](https://img.shields.io/badge/dependencies-0-brightgreen.svg)](#)
+
 一个**只用 Python 标准库**的校园网自动登录工具。开机后静默认证，中途掉线自动重连，不需要常驻托盘、不需要装一堆依赖，也永远不碰管理员权限。
+
+Python 包名 / 命令叫 `campusnet`，仓库叫 `auto-net` —— 名字对不上是我起名时的锅，不影响用。
 
 支持三种国内最常见的认证协议，一个配置文件切换：
 
@@ -18,8 +25,8 @@
 ## 快速开始
 
 ```bash
-git clone <this-repo>
-cd campus-net-autologin
+git clone git@github.com:aths-7/auto-net.git
+cd auto-net
 
 # 1. 写配置（交互式，会问你 portal / 账号 / 密码）
 python -m campusnet init

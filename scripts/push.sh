@@ -6,7 +6,7 @@ set -euo pipefail
 
 cd "$(dirname "$0")/.."
 
-REMOTE_URL=${1:-git@github.com:aths-7/campus-net-autologin.git}
+REMOTE_URL=${1:-git@github.com:aths-7/auto-net.git}
 BRANCH=$(git rev-parse --abbrev-ref HEAD 2>/dev/null || echo main)
 
 if git remote get-url origin >/dev/null 2>&1; then
