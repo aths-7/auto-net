@@ -291,6 +291,10 @@ def cmd_doctor(args: argparse.Namespace) -> int:
 
     try:
         cfg = config_mod.load(resolved_path(args))
+    except FileNotFoundError:
+        # 诊断命令不该在「还没有配置」这种最常见的场景下崩掉
+        print(f"\n配置文件不存在: {resolved_path(args)}（先跑 campusnet init）")
+        cfg = config_mod.deep_merge(config_mod.DEFAULT_CONFIG, {})
     except SystemExit as exc:
         print(f"\n配置读取失败: {exc}")
         return 1

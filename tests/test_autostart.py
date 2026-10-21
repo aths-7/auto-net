@@ -98,13 +98,41 @@ class TestCli(unittest.TestCase):
     def test_status_reports_the_config_actually_used(self) -> None:
         import io
         from contextlib import redirect_stdout
+        from unittest import mock
 
         config_mod.save({"username": "u", "password": "p", "portal": "http://10.1.1.1"}, self.cfg_path)
         buf = io.StringIO()
-        with redirect_stdout(buf):
+        with mock.patch("campusnet.cli.netcheck.is_online", return_value=(True, [])), \
+                redirect_stdout(buf):
             cli.main(["-c", str(self.cfg_path), "status"])
         # 回归：曾经这里硬编码打印默认路径，-c 被无视
         self.assertIn(str(self.cfg_path), buf.getvalue())
+
+    def test_doctor_without_config_does_not_crash(self) -> None:
+        import io
+        from contextlib import redirect_stdout
+        from unittest import mock
+
+        buf = io.StringIO()
+        with mock.patch("campusnet.cli.netcheck.is_online", return_value=(False, [])), \
+                redirect_stdout(buf):
+            code = cli.main(["-c", str(self.cfg_path), "doctor"])
+        output = buf.getvalue()
+        self.assertEqual(code, 1)  # 有配置问题 -> 1，但不应该是异常
+        self.assertIn("不存在", output)
+
+    def test_doctor_with_complete_config(self) -> None:
+        import io
+        from contextlib import redirect_stdout
+        from unittest import mock
+
+        config_mod.save({"username": "u", "password": "p", "portal": "http://10.1.1.1",
+                         "provider": "srun"}, self.cfg_path)
+        buf = io.StringIO()
+        with mock.patch("campusnet.cli.netcheck.is_online", return_value=(True, [])), \
+                redirect_stdout(buf):
+            code = cli.main(["-c", str(self.cfg_path), "doctor"])
+        self.assertEqual(code, 0)
 
 
 if __name__ == "__main__":
